@@ -27,13 +27,20 @@ const TargetGroupID = "120363312348014308@g.us"
 var client *whatsmeow.Client
 var currentQR string
 
+// 🌟 Timezone Bug Fix: இந்திய நேரத்திற்கு (IST) மாற்றப்பட்டுள்ளது 🌟
 func isSleepTime() bool {
-	now := time.Now()
+	loc, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		loc = time.FixedZone("IST", 5*3600+1800)
+	}
+	now := time.Now().In(loc)
 	hour := now.Hour()
 	minute := now.Minute()
 	timeInMinutes := hour*60 + minute
-	sleepStart := 18*60 + 30
-	sleepEnd := 4*60 + 30
+	
+	sleepStart := 18*60 + 30 // மாலை 6:30 PM
+	sleepEnd := 4*60 + 30    // காலை 4:30 AM
+	
 	if timeInMinutes >= sleepStart || timeInMinutes < sleepEnd {
 		return true
 	}
@@ -41,7 +48,7 @@ func isSleepTime() bool {
 }
 
 func startAPI() {
-	// 🌟 பின்னணியில் Status செக் செய்யும் API 🌟
+	// பின்னணியில் Status செக் செய்யும் API
 	http.HandleFunc("/api/status", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if client != nil && client.IsLoggedIn() {
@@ -51,7 +58,7 @@ func startAPI() {
 		json.NewEncoder(w).Encode(map[string]interface{}{"connected": false, "qr": currentQR})
 	})
 
-	// 🌟 Smart Web Page (Page Reload ஆகாது) 🌟
+	// Smart Web Page
 	http.HandleFunc("/qr", func(w http.ResponseWriter, r *http.Request) {
 		html := `
 		<html>
@@ -152,15 +159,49 @@ func startAPI() {
 func eventHandler(evt interface{}) {
 	switch v := evt.(type) {
 	case *events.Message:
-		if v.Info.IsFromMe || v.Message.GetConversation() == "" {
+		
+		// 🌟 Photo Caption Bug Fix: Text மற்றும் Photo Caption இரண்டையும் படிக்கும் லாஜிக் 🌟
+		msgText := v.Message.GetConversation()
+		if msgText == "" && v.Message.GetImageMessage() != nil {
+			msgText = v.Message.GetImageMessage().GetCaption()
+		}
+		if msgText == "" && v.Message.GetExtendedTextMessage() != nil {
+			msgText = v.Message.GetExtendedTextMessage().GetText()
+		}
+
+		// 🌟 Detailed Logs - Start (Render-ல் எல்லாமே தெரியும்) 🌟
+		fmt.Println("\n=================================")
+		fmt.Println("📥 NEW WHATSAPP MESSAGE RECEIVED")
+		fmt.Println("📌 Group/Chat ID:", v.Info.MessageSource.Chat.String())
+		fmt.Println("👤 Sender:", v.Info.PushName, "(", v.Info.Sender.User, ")")
+		fmt.Println("📝 Text/Caption:", msgText)
+		fmt.Println("=================================\n")
+		// 🌟 Detailed Logs - End 🌟
+
+		// நாமே அனுப்பிய மெசேஜ் என்றால் தவிர்த்துவிடும்
+		if v.Info.IsFromMe {
 			return
 		}
+
+		// மெசேஜ் காலியாக இருந்தால்
+		if msgText == "" {
+			fmt.Println("⚠️ SKIP: Message is empty (No text/caption).")
+			return
+		}
+
+		// நமது குரூப் இல்லை என்றால் தவிர்த்துவிடும்
 		if v.Info.MessageSource.Chat.String() != TargetGroupID {
+			fmt.Println("⚠️ SKIP: Message from outside group. Expected:", TargetGroupID)
 			return
 		}
+
+		// தூங்கும் நேரம் என்றால் தவிர்த்துவிடும்
 		if isSleepTime() {
+			fmt.Println("😴 SKIP: Sleep time active.")
 			return
 		}
+
+		fmt.Println("✅ MATCH! Forwarding to Cloud Database...")
 
 		go func() {
 			ctx := context.Background()
@@ -173,15 +214,21 @@ func eventHandler(evt interface{}) {
 			payload := map[string]interface{}{
 				"id":        int(time.Now().Unix()),
 				"sender":    v.Info.Sender.User,
-				"message":   v.Message.GetConversation(),
+				"message":   msgText, // இப்போது Caption-ம் சரியாகச் செல்லும்
 				"push_name": v.Info.PushName,
 				"timestamp": v.Info.Timestamp.Format(time.RFC3339),
 				"group_id":  v.Info.MessageSource.Chat.String(),
 			}
 			jsonData, _ := json.Marshal(payload)
 
-			http.Post("https://remon1810.pythonanywhere.com/webhook", "application/json", bytes.NewBuffer(jsonData))
-			fmt.Println("☁️ Saved securely to Cloud Database!")
+			resp, err := http.Post("https://remon1810.pythonanywhere.com/webhook", "application/json", bytes.NewBuffer(jsonData))
+			
+			if err != nil {
+				fmt.Println("❌ CRITICAL ERROR: Could not send to Cloud -", err)
+			} else {
+				fmt.Println("☁️ Cloud Response Status:", resp.Status)
+				fmt.Println("🎉 Successfully Saved to PythonAnywhere!")
+			}
 		}()
 	}
 }
