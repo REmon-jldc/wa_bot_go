@@ -124,26 +124,51 @@ func startAPI() {
 		w.Write([]byte(html))
 	})
 
+	// 🌟 POLLER TO WA Reply anuppum function 🌟
 	http.HandleFunc("/send_reply", func(w http.ResponseWriter, r *http.Request) {
 		var req map[string]string
 		json.NewDecoder(r.Body).Decode(&req)
 
 		groupID := req["group_id"]
 		replyText := req["reply"]
+		
+		// Tag pandrathukkana IDs
+		msgID := req["msg_id"]             
+		participant := req["participant"]  
 
 		go func() {
 			ctx := context.Background()
 			targetJID, _ := types.ParseJID(groupID)
 
+			// 1. "Typing..." nu WhatsApp-la kaatum
 			client.SendChatPresence(ctx, targetJID, types.ChatPresenceComposing, types.ChatPresenceMediaText)
-			typingDelay := time.Duration(rand.Intn(6)+3) * time.Second
+			
+			// 2. 🌟 6 to 10 Sec Random Gap 🌟 (HUMAN TYPE LOGIC)
+			typingDelay := time.Duration(rand.Intn(5)+6) * time.Second
 			time.Sleep(typingDelay)
+
+			// 3. Typing stop pannidum
 			client.SendChatPresence(ctx, targetJID, types.ChatPresencePaused, types.ChatPresenceMediaText)
 
-			client.SendMessage(ctx, targetJID, &proto.Message{
-				Conversation: googleProto.String(replyText),
-			})
-			fmt.Println("✅ Reply Sent to WhatsApp!")
+			msgToSend := &proto.Message{}
+
+			// 4. 🌟 Tag Reply Logic 🌟
+			// Message ID iruntha atha tag (quote) panni anuppum
+			if msgID != "" && participant != "" {
+				msgToSend.ExtendedTextMessage = &proto.ExtendedTextMessage{
+					Text: googleProto.String(replyText),
+					ContextInfo: &proto.ContextInfo{
+						StanzaId:    googleProto.String(msgID),
+						Participant: googleProto.String(participant),
+					},
+				}
+			} else {
+				// Message ID illana normal ah anuppum
+				msgToSend.Conversation = googleProto.String(replyText)
+			}
+
+			client.SendMessage(ctx, targetJID, msgToSend)
+			fmt.Println("✅ Tag Reply Sent to WhatsApp with Delay!")
 		}()
 		w.WriteHeader(200)
 	})
