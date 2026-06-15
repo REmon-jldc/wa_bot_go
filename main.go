@@ -201,7 +201,7 @@ http.HandleFunc("/get_group_members", func(w http.ResponseWriter, r *http.Reques
             lid = p.LID.User
         }
         members = append(members, MemberInfo{
-            Phone: p.JID.User,
+            Phone: p.JID.String(),
             LID:   lid,
         })
     }
