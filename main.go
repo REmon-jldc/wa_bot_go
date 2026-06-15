@@ -181,6 +181,34 @@ func startAPI() {
 	http.ListenAndServe(":"+port, nil)
 }
 
+// 🌟 குரூப்பில் உள்ளவர்களின் @lid-ஐ எடுத்து Python-க்கு அனுப்பும் API 🌟
+	http.HandleFunc("/get_group_members", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		// உங்களின் வாட்ஸ்அப் குரூப் ID (TargetGroupID ஏற்கனவே நீங்கள் செட் செய்தது)
+		targetJID, _ := types.ParseJID(TargetGroupID)
+
+		// குரூப் தகவல்களை வாட்ஸ்அப்பில் இருந்து எடுப்பது
+		groupInfo, err := client.GetGroupInfo(targetJID)
+		if err != nil {
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Group info failed"})
+			return
+		}
+
+		var memberIDs []string
+		for _, participant := range groupInfo.Participants {
+			// ஒவ்வொரு மெம்பரின் @lid அல்லது உண்மையான ID-ஐ லிஸ்டில் சேர்ப்பது
+			memberIDs = append(memberIDs, participant.JID.String())
+		}
+
+		// Python-க்கு JSON ஆக அனுப்புவது
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"group_id":    TargetGroupID,
+			"total_count": len(memberIDs),
+			"members":     memberIDs,
+		})
+	})
+
 func eventHandler(evt interface{}) {
 	switch v := evt.(type) {
 	case *events.Message:
