@@ -169,26 +169,48 @@ func startAPI() {
 
 			client.SendMessage(ctx, targetJID, msgToSend)
 			fmt.Println("✅ Tag Reply Sent to WhatsApp with Delay!")
-		})
-		http.HandleFunc("/get_group_members", func(w http.ResponseWriter, r *http.Request) {
+	    	}()
+		w.WriteHeader(200)
+	})
+// ✅ Get Group Members with LID
+http.HandleFunc("/get_group_members", func(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")
-    targetJID, _ := types.ParseJID(TargetGroupID)
-    groupInfo, err := client.GetGroupInfo(context.Background(), targetJID)
-    if err != nil {
-        json.NewEncoder(w).Encode(map[string]interface{}{"error": "Group info failed"})
+
+    if client == nil || !client.IsLoggedIn() {
+        json.NewEncoder(w).Encode(map[string]interface{}{"error": "WhatsApp not connected"})
         return
     }
-    var memberIDs []string
-    for _, participant := range groupInfo.Participants {
-        memberIDs = append(memberIDs, participant.JID.String())
+
+    targetJID, _ := types.ParseJID(TargetGroupID)
+
+    groupInfo, err := client.GetGroupInfo(context.Background(), targetJID)
+    if err != nil {
+        json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
+        return
     }
+
+    type MemberInfo struct {
+        Phone string `json:"phone"`
+        LID   string `json:"lid"`
+    }
+
+    var members []MemberInfo
+    for _, p := range groupInfo.Participants {
+        lid := ""
+        if !p.LID.IsEmpty() {
+            lid = p.LID.User
+        }
+        members = append(members, MemberInfo{
+            Phone: p.JID.User,
+            LID:   lid,
+        })
+    }
+
     json.NewEncoder(w).Encode(map[string]interface{}{
-        "group_id":    TargetGroupID,
-        "total_count": len(memberIDs),
-        "members":     memberIDs,
+        "total":   len(members),
+        "members": members,
     })
-}) 
-	})
+})
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
