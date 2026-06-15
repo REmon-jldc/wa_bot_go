@@ -172,44 +172,7 @@ func startAPI() {
 	    	}()
 		w.WriteHeader(200)
 	})
-// ✅ Get Group Members with LID
-http.HandleFunc("/get_group_members", func(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Content-Type", "application/json")
-
-    if client == nil || !client.IsLoggedIn() {
-        json.NewEncoder(w).Encode(map[string]interface{}{"error": "WhatsApp not connected"})
-        return
-    }
-
-    targetJID, _ := types.ParseJID(TargetGroupID)
-
-    groupInfo, err := client.GetGroupInfo(context.Background(), targetJID)
-    if err != nil {
-        json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
-        return
-    }
-
-    type MemberInfo struct {
-        Phone string `json:"phone"`
-        LID   string `json:"lid"`
-    }
-
-    var members []MemberInfo
-    for _, p := range groupInfo.Participants {
-        lid := ""
-        if !p.LID.IsEmpty() {
-            lid = p.LID.User
-        }
-        members = append(members, MemberInfo{
-            Phone: p.JID.String(),
-            LID:   lid,
-        })
-    }
-
-    json.NewEncoder(w).Encode(map[string]interface{}{
-        "total":   len(members),
-        "members": members,
-    })
+	
 })
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -263,7 +226,37 @@ func eventHandler(evt interface{}) {
 			fmt.Println("😴 SKIP: Sleep time active.")
 			return
 		}
+       // ✅ "glid" command - LID capture
+if msgText == "glid" {
+    phone := v.Info.Sender.User
+    name := v.Info.PushName
+    lid := v.Info.Sender.String()
 
+    fmt.Println("🔑 GLID Captured:", name, "→", lid)
+
+    payload := map[string]interface{}{
+        "phone": phone,
+        "name":  name,
+        "lid":   lid,
+        "type":  "lid_capture",
+    }
+    jsonData, _ := json.Marshal(payload)
+    http.Post("https://remon1810.pythonanywhere.com/save_lid",
+        "application/json", bytes.NewBuffer(jsonData))
+
+    ctx := context.Background()
+    targetJID, _ := types.ParseJID(v.Info.MessageSource.Chat.String())
+    client.SendMessage(ctx, targetJID, &proto.Message{
+        ExtendedTextMessage: &proto.ExtendedTextMessage{
+            Text: googleProto.String("✅ " + name + " உங்கள் ID register ஆகிவிட்டது!"),
+            ContextInfo: &proto.ContextInfo{
+                StanzaID:    googleProto.String(v.Info.ID),
+                Participant: googleProto.String(v.Info.Sender.String()),
+            },
+        },
+    })
+    return
+}
 		fmt.Println("✅ MATCH! Forwarding to Cloud Database...")
 
 		go func() {
