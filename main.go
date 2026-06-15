@@ -172,15 +172,6 @@ func startAPI() {
 		}()
 		w.WriteHeader(200)
 	})
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-	fmt.Println("🌐 Go API Server running on port:", port)
-	http.ListenAndServe(":"+port, nil)
-}
-
 // 🌟 குரூப்பில் உள்ளவர்களின் @lid-ஐ எடுத்து Python-க்கு அனுப்பும் API 🌟
 	http.HandleFunc("/get_group_members", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -208,6 +199,13 @@ func startAPI() {
 			"members":     memberIDs,
 		})
 	})
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	fmt.Println("🌐 Go API Server running on port:", port)
+	http.ListenAndServe(":"+port, nil)
+}
 
 func eventHandler(evt interface{}) {
 	switch v := evt.(type) {
