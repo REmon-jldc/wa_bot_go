@@ -158,7 +158,7 @@ func startAPI() {
 				msgToSend.ExtendedTextMessage = &proto.ExtendedTextMessage{
 					Text: googleProto.String(replyText),
 					ContextInfo: &proto.ContextInfo{
-						StanzaId:    googleProto.String(msgID),
+						StanzaID:    googleProto.String(msgID),
 						Participant: googleProto.String(participant),
 					},
 				}
