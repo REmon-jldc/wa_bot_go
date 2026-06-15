@@ -173,7 +173,6 @@ func startAPI() {
 		w.WriteHeader(200)
 	})
 	
-})
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
