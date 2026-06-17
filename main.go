@@ -269,6 +269,7 @@ if msgText == "glid" {
 			payload := map[string]interface{}{
 				"id":        int(time.Now().Unix()),
 				"sender":    v.Info.Sender.User,
+				"msg_id": 	 v.Info.ID,
 				"message":   msgText, // இப்போது Caption-ம் சரியாகச் செல்லும்
 				"push_name": v.Info.PushName,
 				"timestamp": v.Info.Timestamp.Format(time.RFC3339),
