@@ -247,7 +247,7 @@ if msgText == "glid" {
     targetJID, _ := types.ParseJID(v.Info.MessageSource.Chat.String())
     client.SendMessage(ctx, targetJID, &proto.Message{
         ExtendedTextMessage: &proto.ExtendedTextMessage{
-            Text: googleProto.String("✅ " + name + " 💙 உங்கள் ID:\n*" + lid + "*\nவெற்றிகரமாக register ஆகிவிட்டது!"),
+            Text: googleProto.String("✅ " + name + " 💙 உங்கள் ID:\n*" + lid + "*\nThanks it's your  Lid  "),
             ContextInfo: &proto.ContextInfo{
                 StanzaID:    googleProto.String(v.Info.ID),
                 Participant: googleProto.String(v.Info.Sender.String()),
