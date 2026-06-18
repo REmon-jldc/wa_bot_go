@@ -197,7 +197,7 @@ func eventHandler(evt interface{}) {
 			msgText = imgMsg.GetCaption()
 
 			// 📸 போட்டோவை டவுன்லோட் செய்து Base64 ஆக மாற்றும் லாஜிக்
-			imgBytes, err := client.Download(imgMsg)
+			imgBytes, err := client.Download(context.Background(), imgMsg)
 			if err != nil {
 				fmt.Println("❌ Image Download Error:", err)
 			} else {
