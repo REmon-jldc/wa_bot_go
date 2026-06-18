@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -185,12 +186,25 @@ func eventHandler(evt interface{}) {
 	switch v := evt.(type) {
 	case *events.Message:
 		
-		// 🌟 Photo Caption Bug Fix: Text மற்றும் Photo Caption இரண்டையும் படிக்கும் லாஜிக் 🌟
+		// 🌟 Photo Download & Text Logic 🌟
 		msgText := v.Message.GetConversation()
-		if msgText == "" && v.Message.GetImageMessage() != nil {
-			msgText = v.Message.GetImageMessage().GetCaption()
-		}
-		if msgText == "" && v.Message.GetExtendedTextMessage() != nil {
+		msgType := "text" // Default ஆக text
+		var base64Image string
+
+		imgMsg := v.Message.GetImageMessage()
+		if imgMsg != nil {
+			msgType = "image"
+			msgText = imgMsg.GetCaption()
+
+			// 📸 போட்டோவை டவுன்லோட் செய்து Base64 ஆக மாற்றும் லாஜிக்
+			imgBytes, err := client.Download(imgMsg)
+			if err != nil {
+				fmt.Println("❌ Image Download Error:", err)
+			} else {
+				base64Image = base64.StdEncoding.EncodeToString(imgBytes)
+				fmt.Println("📸 Image Downloaded & Encoded to Base64!")
+			}
+		} else if v.Message.GetExtendedTextMessage() != nil {
 			msgText = v.Message.GetExtendedTextMessage().GetText()
 		}
 
@@ -274,6 +288,8 @@ if msgText == "glid" {
 				"push_name": v.Info.PushName,
 				"timestamp": v.Info.Timestamp.Format(time.RFC3339),
 				"group_id":  v.Info.MessageSource.Chat.String(),
+				"type":      msgType,
+				"image_data": base64Image,
 			}
 			jsonData, _ := json.Marshal(payload)
 
